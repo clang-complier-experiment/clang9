@@ -6143,7 +6143,7 @@ Sema::CheckAssignmentConstraints(QualType LHSType, ExprResult &RHS,
     if (LHSType->isArrayType()){
 		return Compatible;
 	}
-		//--------------------------------------------------version 2 end--------------------------------------------
+	//----------------------------------------------------------version 2 end--------------------------------------------
     return Incompatible;
   }
 
@@ -6755,9 +6755,36 @@ QualType Sema::CheckAdditionOperands( // C99 6.5.6
     }
   }
   assert(PExp->getType()->isAnyPointerType());
- 							// chang here
+ 															// change here pro2
  // if (!IExp->getType()->isIntegerType())
  //   return InvalidOperands(Loc, LHS, RHS);
+  if(IExp->getType()->isPointerType() && PExp->getType()->isPointerType()){
+  		//const Type *LType = getElementType(PExp);
+		//const Type *RType = getElementType(IExp);
+		const Type *LType = PExp->getType().getTypePtr()->getPointeeType().getTypePtr();
+		const Type *RType = IExp->getType().getTypePtr()->getPointeeType().getTypePtr();
+		const ConstantArrayType *ArrayLTy = Context.getAsConstantArrayType(PExp->IgnoreParenImpCasts()->getType());
+		const ConstantArrayType *ArrayRTy = Context.getAsConstantArrayType(IExp->IgnoreParenImpCasts()->getType());
+														
+	    //ArrayLTy->getSize(). == ArrayRTy->getSize().getValue
+		llvm::APInt L_Size = ArrayLTy->getSize();
+		llvm::APInt R_Size = ArrayRTy->getSize();
+		if(L_Size == R_Size){
+			if(LType->isIntegerType() && RType->isIntegerType() );
+			else if(LType->isCharType() && RType->isCharType());
+			//else if(LType->isFloat() && RType->isFloat());
+			else	
+				return InvalidOperands(Loc, LHS, RHS);
+		}
+		else{
+			return InvalidOperands(Loc, LHS, RHS);
+		}
+		//llvm::APSInt Size;
+		//if(ArrayLTy->getSize().ult(ArrayRTy->getSize()));
+		//llvm::APInt L_Size = ArrayLTy->getSize();
+		//llvm::APInt R_Size = ArrayRTy->getSize();
+	}
+														//change end pro2
 
   if (!checkArithmeticOpPointerOperand(*this, Loc, PExp))
     return QualType();
@@ -8015,7 +8042,7 @@ QualType Sema::CheckAssignmentOperands(Expr *LHSExpr, ExprResult &RHS,
   // Verify that LHS is a modifiable lvalue, and emit error if not.
   //if (CheckForModifiableLvalue(LHSExpr, Loc, *this))
   //  return QualType();
-//-------------------------------------------------------change here---------------------------------------------------------
+  //-------------------------------------------------------change here---------------------------------------------------------
  int flag = 0;
  Expr *IExp = RHS.get();
  if(!IExp->getType()->isPointerType())
@@ -8039,11 +8066,11 @@ QualType Sema::CheckAssignmentOperands(Expr *LHSExpr, ExprResult &RHS,
       //                                                        &Loc);
 
     //if(IExp->getType()->isPointerType() && (IsLV == Expr::MLV_ArrayType || 
- //		IsLV == Expr::MLV_ArrayTemporary))	ConvTy = Compatible;
-   // else{
- //	  ConvTy = CheckSingleAssignmentConstraints(LHSTy, RHS);
- //	}
- //-----------------------------------------------------------------end version 1----------------------------------------------	
+    //	IsLV == Expr::MLV_ArrayTemporary))	ConvTy = Compatible;
+    // else{
+    //	  ConvTy = CheckSingleAssignmentConstraints(LHSTy, RHS);
+    //	}
+    //-----------------------------------------------------------------end version 1----------------------------------------------	
     ConvTy = CheckSingleAssignmentConstraints(LHSTy, RHS);
     if (RHS.isInvalid())
       return QualType();
