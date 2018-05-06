@@ -6140,8 +6140,12 @@ Sema::CheckAssignmentConstraints(QualType LHSType, ExprResult &RHS,
       return PointerToInt;
     }
 	//------------------------------------------------------add version 2 here-------------------------------------------
-    if (LHSType->isArrayType()){
-		return Compatible;
+    if (LHSType->isArrayType() && RHS.get()->IgnoreParenImpCasts()->getType()->isArrayType()){
+		//if(Context.getAsConstantArrayType(RHS.get()->IgnoreParenImpCasts()->getType())->getSize()
+		//	== Context.getAsConstantArrayType(LHSType)->getSize())
+			return Compatible;
+		//else
+		//	return Incompatible;
 	}
 	//----------------------------------------------------------version 2 end--------------------------------------------
     return Incompatible;
@@ -6319,7 +6323,7 @@ Sema::CheckSingleAssignmentConstraints(QualType LHSType, ExprResult &RHS,
   Sema::AssignConvertType result =
     CheckAssignmentConstraints(LHSType, RHS, Kind);
   //add version 2
-  if(result != Incompatible && RHS.get()->getType()->isPointerType()
+  if(result != Incompatible && RHS.get()->IgnoreParenImpCasts()->getType()->isArrayType()
 		&& LHSType->isArrayType())	return result;
   // C99 6.5.16.1p2: The value of the right operand is converted to the
   // type of the assignment expression.
@@ -6758,7 +6762,7 @@ QualType Sema::CheckAdditionOperands( // C99 6.5.6
  															// change here pro2
  // if (!IExp->getType()->isIntegerType())
  //   return InvalidOperands(Loc, LHS, RHS);
-  if(IExp->getType()->isPointerType() && PExp->getType()->isPointerType()){
+  if(IExp->IgnoreParenImpCasts()->getType()->isArrayType() && PExp->IgnoreParenImpCasts()->getType()->isArrayType()){
   		//const Type *LType = getElementType(PExp);
 		//const Type *RType = getElementType(IExp);
 		const Type *LType = PExp->getType().getTypePtr()->getPointeeType().getTypePtr();
@@ -6784,6 +6788,9 @@ QualType Sema::CheckAdditionOperands( // C99 6.5.6
 		//llvm::APInt L_Size = ArrayLTy->getSize();
 		//llvm::APInt R_Size = ArrayRTy->getSize();
 	}
+	else if(IExp->IgnoreParenImpCasts()->getType()->isArrayType() || PExp->IgnoreParenImpCasts()->getType()->isArrayType()){
+		return InvalidOperands(Loc, LHS, RHS);
+	}
 														//change end pro2
 
   if (!checkArithmeticOpPointerOperand(*this, Loc, PExp))
@@ -6805,8 +6812,15 @@ QualType Sema::CheckAdditionOperands( // C99 6.5.6
     }
     *CompLHSTy = LHSTy;
   }
-
-  return PExp->getType();
+  
+  
+	if(IExp->IgnoreParenImpCasts()->getType()->isArrayType() && PExp->IgnoreParenImpCasts()->getType()->isArrayType()){
+		return PExp->IgnoreParenImpCasts()->getType();
+	}
+	else{
+		return PExp->getType();
+	}
+  
 }
 
 // C99 6.5.6
@@ -7966,9 +7980,9 @@ static bool CheckForModifiableLvalue(Expr *E, SourceLocation Loc, Sema &S) {
     break;
   case Expr::MLV_ArrayType:
   case Expr::MLV_ArrayTemporary:
-    Diag = diag::err_typecheck_array_not_modifiable_lvalue;
-    NeedType = true;
-    break;
+  //  Diag = diag::err_typecheck_array_not_modifiable_lvalue;
+  //  NeedType = true;
+    return false;
   case Expr::MLV_NotObjectType:
     Diag = diag::err_typecheck_non_object_not_modifiable_lvalue;
     NeedType = true;
@@ -8045,7 +8059,7 @@ QualType Sema::CheckAssignmentOperands(Expr *LHSExpr, ExprResult &RHS,
   //-------------------------------------------------------change here---------------------------------------------------------
  int flag = 0;
  Expr *IExp = RHS.get();
- if(!IExp->getType()->isPointerType())
+ //if(!IExp->getType()->isArrayType())
 	  flag = CheckForModifiableLvalue(LHSExpr, Loc, *this);
   if (flag)
     return QualType();
