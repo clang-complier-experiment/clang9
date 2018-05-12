@@ -6141,11 +6141,13 @@ Sema::CheckAssignmentConstraints(QualType LHSType, ExprResult &RHS,
     }
 	//------------------------------------------------------add version 2 here-------------------------------------------
     if (LHSType->isArrayType() && RHS.get()->IgnoreParenImpCasts()->getType()->isArrayType()){
-		//if(Context.getAsConstantArrayType(RHS.get()->IgnoreParenImpCasts()->getType())->getSize()
-		//	== Context.getAsConstantArrayType(LHSType)->getSize())
+		QualType L_element = Context.getAsConstantArrayType(LHSType)->getElementType();
+		QualType R_element = Context.getAsConstantArrayType(RHS.get()->IgnoreParenImpCasts()->getType())->getElementType();
+		if(	Context.getCanonicalType(L_element).getUnqualifiedType()
+			== Context.getCanonicalType(R_element).getUnqualifiedType())
 			return Compatible;
-		//else
-		//	return Incompatible;
+		else if
+			return Incompatible;
 	}
 	//----------------------------------------------------------version 2 end--------------------------------------------
     return Incompatible;
