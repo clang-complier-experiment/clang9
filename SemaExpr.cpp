@@ -6486,7 +6486,28 @@ QualType Sema::CheckMultiplyDivideOperands(ExprResult &LHS, ExprResult &RHS,
   QualType compType = UsualArithmeticConversions(LHS, RHS, IsCompAssign);
   if (LHS.isInvalid() || RHS.isInvalid())
     return QualType();
+  //add arrays  multiply
+  Expr *PExp = LHS.get(), *IExp = RHS.get();
+  if(IExp->IgnoreParenImpCasts()->getType()->isArrayType() && PExp->IgnoreParenImpCasts()->getType()->isArrayType()){
+    const Type *LType = PExp->getType().getTypePtr()->getPointeeType().getTypePtr();
+    const Type *RType = IExp->getType().getTypePtr()->getPointeeType().getTypePtr();
+    const ConstantArrayType *ArrayLTy = Context.getAsConstantArrayType(PExp->IgnoreParenImpCasts()->getType());
+    const ConstantArrayType *ArrayRTy = Context.getAsConstantArrayType(IExp->IgnoreParenImpCasts()->getType());
 
+    llvm::APInt L_Size = ArrayLTy->getSize();
+    llvm::APInt R_Size = ArrayRTy->getSize();
+    if(L_Size == R_Size){
+      if(LType->isIntegerType() && RType->isIntegerType() );
+      else if(LType->isCharType() && RType->isCharType());
+      else	
+	return InvalidOperands(Loc, LHS, RHS);
+    }
+    else{
+      return InvalidOperands(Loc, LHS, RHS);
+    }
+    return PExp->IgnoreParenImpCasts()->getType();
+  }
+  ////////////////
 
   if (compType.isNull() || !compType->isArithmeticType())
     return InvalidOperands(Loc, LHS, RHS);
