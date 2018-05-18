@@ -4092,7 +4092,12 @@ static bool hasCompatibleArrayTypes(ASTContext &Context,
                                     const ArrayType *Source) {
   // If the source and destination array types are equivalent, we're
   // done.
-  if (Context.hasSameType(QualType(Dest, 0), QualType(Source, 0)))
+  //if (Context.hasSameType(QualType(Dest, 0), QualType(Source, 0)))
+  //  return true;
+  QualType DstType = Context.getCanonicalType(QualType(Dest, 0)).getUnqualifiedType();
+  QualType SouType = Context.getCanonicalType(QualType(Source, 0)).getUnqualifiedType();
+
+  if(Context.hasSameType(DstType, SouType))
     return true;
 
   // Make sure that the element types are the same.
@@ -4288,7 +4293,8 @@ InitializationSequence::InitializationSequence(Sema &S,
     // type, so long as the initializer has no side effects.
     if (!S.getLangOpts().CPlusPlus && Initializer &&
         isa<CompoundLiteralExpr>(Initializer->IgnoreParens()) &&
-        Initializer->getType()->isArrayType()) {
+        Initializer->getType()->isArrayType() || (Initializer->getType()->isArrayType() &&
+         DestType->isArrayType())) {
       const ArrayType *SourceAT
         = Context.getAsArrayType(Initializer->getType());
       if (!hasCompatibleArrayTypes(S.Context, DestAT, SourceAT))
