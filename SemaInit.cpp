@@ -4102,7 +4102,7 @@ static bool hasCompatibleArrayTypes(ASTContext &Context,
 
   // Make sure that the element types are the same.
   if (!Context.hasSameType(Dest->getElementType(), Source->getElementType()))
-    return false;
+    return true;
 
   // The only mismatch we allow is when the destination is an
   // incomplete array type and the source is a constant array type.
@@ -4297,6 +4297,15 @@ InitializationSequence::InitializationSequence(Sema &S,
          DestType->isArrayType())) {
       const ArrayType *SourceAT
         = Context.getAsArrayType(Initializer->getType());
+      if((Initializer->getType()->isArrayType()& DestType->isArrayType())){
+        Args[0] = S.DefaultFunctionArrayLvalueConversion(Initializer).take();
+        const ConstantArrayType *ArrayLTy = Context.getAsConstantArrayType(DestType);
+        const ConstantArrayType *ArrayRTy = Context.getAsConstantArrayType(Args[0]->IgnoreParenImpCasts()->getType());
+        QualType L_element = ArrayLTy->getElementType();
+        QualType R_element = ArrayRTy->getElementType();
+        if(L_element != R_element)
+          Args[0] = S.ImpCastExprToType(Args[0], Context.getArrayDecayedType(DestType), CK_BitCast).take();
+      }
       if (!hasCompatibleArrayTypes(S.Context, DestAT, SourceAT))
         SetFailed(FK_ArrayTypeMismatch);
       else if (Initializer->HasSideEffects(S.Context))
