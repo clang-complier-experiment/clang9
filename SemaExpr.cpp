@@ -6151,13 +6151,13 @@ Sema::CheckAssignmentConstraints(QualType LHSType, ExprResult &RHS,
 		QualType L_element = ArrayLTy->getElementType();
 		QualType R_element = ArrayRTy->getElementType();
 		if(L_element->isArrayType() || R_element->isArrayType())	return Incompatible;
-		/*if(	Context.getCanonicalType(L_element).getUnqualifiedType()
-			== Context.getCanonicalType(R_element).getUnqualifiedType())
-			return Compatible;
+		if(	Context.getCanonicalType(L_element).getUnqualifiedType()
+			!= Context.getCanonicalType(R_element).getUnqualifiedType())
+		/*	return Compatible;
 		else if
 			return Incompatible;*/
 		//QualType L_Type = Context.getCanonicalType(LHSType);
-		RHS = ImpCastExprToType(RHS.take(), Context.getArrayDecayedType(LHSType), CK_BitCast);
+			RHS = ImpCastExprToType(RHS.take(), Context.getArrayDecayedType(LHSType), CK_BitCast);
 		return Compatible;
 	}
 	//----------------------------------------------------------version 2 end--------------------------------------------
@@ -6502,6 +6502,10 @@ QualType Sema::CheckMultiplyDivideOperands(ExprResult &LHS, ExprResult &RHS,
   if(IExp->IgnoreParenImpCasts()->getType()->isArrayType() && PExp->IgnoreParenImpCasts()->getType()->isArrayType()){
     const Type *LType = PExp->getType().getTypePtr()->getPointeeType().getTypePtr();
     const Type *RType = IExp->getType().getTypePtr()->getPointeeType().getTypePtr();
+	
+	//LType = Context.getCanonicalType(LType).getUnqualifiedType();
+	//RType = Context.getCanonicalType(RType).getUnqualifiedType();
+		
     const ConstantArrayType *ArrayLTy = Context.getAsConstantArrayType(PExp->IgnoreParenImpCasts()->getType());
     const ConstantArrayType *ArrayRTy = Context.getAsConstantArrayType(IExp->IgnoreParenImpCasts()->getType());
 
@@ -6510,16 +6514,19 @@ QualType Sema::CheckMultiplyDivideOperands(ExprResult &LHS, ExprResult &RHS,
     if(L_Size != R_Size){	
 		return InvalidOperands(Loc, LHS, RHS);
     }
-    else if(LType->isArrayType() || RType->isArrayType()){
-      return InvalidOperands(Loc, LHS, RHS);
-    }
-	else if(LType > RType){
+	else if(LType->isArrayType() || RType->isArrayType()){
+		return InvalidOperands(Loc, LHS, RHS);
+	}
+	else if(Context.getCanonicalType(ArrayLTy->getElementType()).getUnqualifiedType() !=
+              Context.getCanonicalType(ArrayRTy->getElementType()).getUnqualifiedType()){
+		if(LType > RType){
 			RHS = ImpCastExprToType(RHS.take(), PExp->getType(), CK_BitCast);
-	}
-	else if(LType < RType){
+		}
+		if(LType < RType){
 			LHS = ImpCastExprToType(LHS.take(), IExp->getType(), CK_BitCast);
+		}
 	}
-    
+	
 	if(LType > RType)
 			return PExp->IgnoreParenImpCasts()->getType();
 	else
@@ -6805,7 +6812,8 @@ QualType Sema::CheckAdditionOperands( // C99 6.5.6
  //   return InvalidOperands(Loc, LHS, RHS);
 		const Type *LType = PExp->getType().getTypePtr()->getPointeeType().getTypePtr();
 		const Type *RType = IExp->getType().getTypePtr()->getPointeeType().getTypePtr();
-		
+		//LType = Context.getCanonicalType(LType).getUnqualifiedType();
+		//RType = Context.getCanonicalType(RType).getUnqualifiedType();
   if(IExp->IgnoreParenImpCasts()->getType()->isArrayType() && PExp->IgnoreParenImpCasts()->getType()->isArrayType()){
   		//const Type *LType = getElementType(PExp);
 		//const Type *RType = getElementType(IExp);
@@ -6828,11 +6836,14 @@ QualType Sema::CheckAdditionOperands( // C99 6.5.6
 		}*/
 		if(L_Size != R_Size)	return InvalidOperands(Loc, LHS, RHS);
 		else if(LType->isArrayType() || RType->isArrayType())	return InvalidOperands(Loc, LHS, RHS);
-		else if(LType > RType){
-			RHS = ImpCastExprToType(RHS.take(), PExp->getType(), CK_BitCast);
-		}
-		else if(LType < RType){
-			LHS = ImpCastExprToType(LHS.take(), IExp->getType(), CK_BitCast);
+		else if(Context.getCanonicalType(ArrayLTy->getElementType()).getUnqualifiedType() !=
+              Context.getCanonicalType(ArrayRTy->getElementType()).getUnqualifiedType()){
+			if(LType > RType){
+				RHS = ImpCastExprToType(RHS.take(), PExp->getType(), CK_BitCast);
+			}
+			if(LType < RType){
+				LHS = ImpCastExprToType(LHS.take(), IExp->getType(), CK_BitCast);
+			}
 		}
 		//llvm::APSInt Size;
 		//if(ArrayLTy->getSize().ult(ArrayRTy->getSize()));
