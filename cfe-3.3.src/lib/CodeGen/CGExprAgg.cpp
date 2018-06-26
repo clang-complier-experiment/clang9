@@ -156,6 +156,7 @@ public:
   void VisitBinaryOperator(const BinaryOperator *BO);
   void VisitPointerToDataMemberBinaryOperator(const BinaryOperator *BO);
   void VisitBinAssign(const BinaryOperator *E);
+  void VisitBinAdd(const BinaryOperator *E);
   void VisitBinComma(const BinaryOperator *E);
 
   void VisitObjCMessageExpr(ObjCMessageExpr *E);
@@ -889,11 +890,20 @@ static bool isBlockVarRef(const Expr *E) {
   return false;
 }
 
+void AggExprEmitter::VisitBinAdd(const BinaryOperator *E){
+  // For an addition to work, the value on the right has
+  // to be compatible with the value on the left.
+  assert(CGF.getContext().hasSameUnqualifiedType(E->getLHS()->getType(),
+                                                 E->getRHS()->IgnoreParenImpCasts()->getType())
+         && "Invalid assignment");
+		 
+}
+
 void AggExprEmitter::VisitBinAssign(const BinaryOperator *E) {
   // For an assignment to work, the value on the right has
   // to be compatible with the value on the left.
   assert(CGF.getContext().hasSameUnqualifiedType(E->getLHS()->getType(),
-                                                 E->getRHS()->getType())
+                                                 E->getRHS()->IgnoreParenImpCasts()->getType())
          && "Invalid assignment");
 
   // If the LHS might be a __block variable, and the RHS can
@@ -943,8 +953,13 @@ void AggExprEmitter::VisitBinAssign(const BinaryOperator *E) {
   if (!LHSSlot.isVolatile() &&
       CGF.hasVolatileMember(E->getLHS()->getType()))
     LHSSlot.setVolatile(true);
-      
-  CGF.EmitAggExpr(E->getRHS(), LHSSlot);
+  if(E->getLHS()->getType()->isArrayType() && E->getRHS()->IgnoreParenImpCasts()->getType()->isArrayType()){
+	  CGF.EmitAggExpr(E->getRHS()->IgnoreParenImpCasts(), LHSSlot);
+  }
+  else{
+	  CGF.EmitAggExpr(E->getRHS(), LHSSlot);
+  }
+  
 
   // Copy into the destination if the assignment isn't ignored.
   EmitFinalDestCopy(E->getType(), LHS);
