@@ -18,12 +18,14 @@
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/StmtVisitor.h"
+#include "clang/Sema/Sema.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Intrinsics.h"
 using namespace clang;
 using namespace CodeGen;
+using namespace sema;
 
 //===----------------------------------------------------------------------===//
 //                        Aggregate Expression Emitter
@@ -892,10 +894,15 @@ static bool isBlockVarRef(const Expr *E) {
 void AggExprEmitter::VisitBinAssign(const BinaryOperator *E) {
   // For an assignment to work, the value on the right has
   // to be compatible with the value on the left.
-  assert(CGF.getContext().hasSameUnqualifiedType(E->getLHS()->getType(),
-                                                 E->getRHS()->getType())
-         && "Invalid assignment");
 
+////////////////-------------------------------------change here-----------------
+	
+	assert(CGF.getContext().hasSameUnqualifiedType(E->getLHS()->getType(), E->getRHS()->IgnoreParenImpCasts()->getType()) && "Invalid assignment");	
+	
+	//assert(CGF.getContext().hasSameUnqualifiedType(E->getLHS()->getType(), E->getRHS()->getType()) && "Invalid assignment");
+
+////////////////--------------------------------------end change here-------------------
+	
   // If the LHS might be a __block variable, and the RHS can
   // potentially cause a block copy, we need to evaluate the RHS first
   // so that the assignment goes the right place.
@@ -1416,8 +1423,12 @@ static void CheckAggExprForMemSetUse(AggValueSlot &Slot, const Expr *E,
 /// the value of the aggregate expression is not needed.  If VolatileDest is
 /// true, DestPtr cannot be 0.
 void CodeGenFunction::EmitAggExpr(const Expr *E, AggValueSlot Slot) {
+  /////////////-------------------------------change here 2--------------------
   assert(E && hasAggregateEvaluationKind(E->getType()) &&
          "Invalid aggregate expression to emit");
+  //assert(E && hasAggregateEvaluationKind(E->getType()) &&
+   //      "Invalid aggregate expression to emit");
+  /////////////-------------------------------end change here 2-----------------
   assert((Slot.getAddr() != 0 || Slot.isIgnored()) &&
          "slot has bits but no address");
 
