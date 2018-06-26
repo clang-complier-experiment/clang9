@@ -898,9 +898,10 @@ void AggExprEmitter::VisitBinAssign(const BinaryOperator *E) {
 ////////////////-------------------------------------change here-----------------
 	
 	assert(CGF.getContext().hasSameUnqualifiedType(E->getLHS()->getType(), E->getRHS()->IgnoreParenImpCasts()->getType()) && "Invalid assignment");	
+	
 	//assert(CGF.getContext().hasSameUnqualifiedType(E->getLHS()->getType(), E->getRHS()->getType()) && "Invalid assignment");
 
-////////////////--------------------------------------end change-------------------
+////////////////--------------------------------------end change here-------------------
 	
   // If the LHS might be a __block variable, and the RHS can
   // potentially cause a block copy, we need to evaluate the RHS first
