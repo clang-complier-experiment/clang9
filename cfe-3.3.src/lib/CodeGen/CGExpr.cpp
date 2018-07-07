@@ -136,7 +136,7 @@ RValue CodeGenFunction::EmitAnyExpr(const Expr *E,
 									//	C	=	A	+	BӾጱC
 			Expr* lhs = bo -> getLHS();
 									//	C	=	A	+	BӾጱ	A	+	B
-			Expr* rhs = bo -> getRHS();
+			Expr* rhs = bo -> getRHS()->IgnoreParenImpCasts();
 									//	C[compiler]	=	A[compiler]	+	B[compiler]
 			llvm::Value *baseC,	*addrC;
 			llvm::Value *baseA,	*addrA;
@@ -146,8 +146,8 @@ RValue CodeGenFunction::EmitAnyExpr(const Expr *E,
 				if(BinaryOperator::classof(rhs)){
 					const BinaryOperator* bo1 = dyn_cast<BinaryOperator>(rhs);
 												//	A	+	BӾጱA޾B
-					Expr* lhs1 = bo1 -> getLHS();
-					Expr* rhs1 = bo1 -> getRHS();
+					Expr* lhs1 = bo1 -> getLHS() ->IgnoreParenImpCasts();
+					Expr* rhs1 = bo1 -> getRHS() ->IgnoreParenImpCasts();
 					assert(lhs1->getType()->getTypeClass()	== Type::ConstantArray);
 					assert(rhs1->getType()->getTypeClass()	== Type::ConstantArray);
 					if(bo1->getOpcode()	== BO_Add || bo1 -> getOpcode()	== BO_Mul){
@@ -157,14 +157,15 @@ RValue CodeGenFunction::EmitAnyExpr(const Expr *E,
 						const ValueDecl* decl = declRef -> getDecl();
 																	//	໑ഝCጱDecl՗ੴ᮱ݒᰁᤒӾکݐC੒ଫጱLLVM	Value
 						baseC = LocalDeclMap.lookup((Decl*)decl);
-						assert(ImplicitCastExpr::classof(rhs1));
-						assert(ImplicitCastExpr::classof(lhs1));
-						const ImplicitCastExpr* rhs2 = dyn_cast<ImplicitCastExpr>(rhs1);
-						const ImplicitCastExpr* lhs2 = dyn_cast<ImplicitCastExpr>(lhs1);
+						//assert(ImplicitCastExpr::classof(rhs1));
+						//assert(ImplicitCastExpr::classof(lhs1));
+						//const ImplicitCastExpr* rhs2 = dyn_cast<ImplicitCastExpr>(rhs1);
+						//const ImplicitCastExpr* lhs2 = dyn_cast<ImplicitCastExpr>(lhs1);
 																	//	A޾B੒ଫጱLLVM	Value
-						const DeclRefExpr *declRefR1 = dyn_cast<DeclRefExpr>(lhs2->getSubExpr());
+						//const DeclRefExpr *declRefR1 = dyn_cast<DeclRefExpr>(lhs2->getSubExpr());
+						const DeclRefExpr *declRefR1 = dyn_cast<DeclRefExpr>(lhs1);
 						baseA = LocalDeclMap.lookup((Decl*)declRefR1->getDecl());
-						const DeclRefExpr *declRefR2 = dyn_cast<DeclRefExpr>(rhs2->getSubExpr());
+						const DeclRefExpr *declRefR2 = dyn_cast<DeclRefExpr>(rhs1);
 						baseB = LocalDeclMap.lookup((Decl*)declRefR2->getDecl());
 
 						const ValueDecl *VD = declRefR2->getDecl();
