@@ -184,7 +184,7 @@ RValue CodeGenFunction::EmitAnyExpr(const Expr *E,
 																	//	ᬟኴ༄ັ݇හ
 						llvm::Value *Zero = llvm::ConstantInt::get(Int32Ty,	0);
 						llvm::Value *Args[]	=	{	Zero,	idxPromoted	};
-
+                                                /*
 						addrC = Builder.CreateInBoundsGEP(arrayPtrC,	Args,	"arrayidx");
 						addrA = Builder.CreateInBoundsGEP(arrayPtrA,	Args,	"arrayidx");
 						addrB = Builder.CreateInBoundsGEP(arrayPtrB,	Args,	"arrayidx");
@@ -197,7 +197,34 @@ RValue CodeGenFunction::EmitAnyExpr(const Expr *E,
 						llvm::Value* add = Builder.CreateAdd((llvm::Value*)valueA,(llvm::Value*)valueB,	"add");
 																		//	ٟC[compiler]
 						llvm::StoreInst *valueC = Builder.CreateStore(add,	addrC,false);
-						valueC ->setAlignment(4);
+						valueC ->setAlignment(4);*/
+						uint64_t k = 0; 
+                                                uint64_t array_size = *(CA->getSize().getRawData());
+                                                while(k < array_size){
+                                                    llvm::Value *Index = llvm::ConstantInt::get(Int32Ty, k);
+                                                    llvm::Value *Argss[] = {Zero, Index};
+   
+                                                    addrC = Builder.CreateInBoundsGEP(arrayPtrC,    Argss,  "arrayidx");
+                                                    addrA = Builder.CreateInBoundsGEP(arrayPtrA,    Argss,  "arrayidx");
+                                                    addrB = Builder.CreateInBoundsGEP(arrayPtrB,    Argss,  "arrayidx");
+
+                                                    llvm::LoadInst *valueA = Builder.CreateLoad(addrA , "");
+                                                    llvm::LoadInst *valueB = Builder.CreateLoad(addrB , "");
+                                                    valueA->setAlignment(4);
+                                                    valueB->setAlignment(4);
+                                                    if(bo1->getOpcode() == BO_Add){
+                                                        llvm::Value* add = Builder.CreateAdd((llvm::Value*)valueA,(llvm::Value*)valu     eB, "add");
+                                                        llvm::StoreInst *valueC = Builder.CreateStore(add,  addrC,false);
+                                                        valueC->setAlignment(4);
+                                                    }
+                                                    else if(bo1->getOpcode() == BO_Mul){
+                                                        llvm::Value* mul = Builder.CreateMul((llvm::Value*)valueA,(llvm::Value*)valu     eB, "mul");
+                                                        llvm::StoreInst *valueC = Builder.CreateStore(mul, addrC, false);
+                                                        valueC->setAlignment(4);
+                                                    }
+
+                                                    k = k + 1;         
+                                                }
 														//	ᵋ׎ᬬࢧӞӻӳᥜ
 						return RValue::get(addrA);
 					}
