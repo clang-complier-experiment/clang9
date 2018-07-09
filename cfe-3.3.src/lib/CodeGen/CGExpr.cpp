@@ -117,7 +117,7 @@ RValue CodeGenFunction::EmitAnyExpr(const Expr *E,
   	if(E->getType()->getTypeClass()	== Type::ConstantArray){
 		if(BinaryOperator::classof(E)){
 
-			QualType Ty = getContext().UnsignedIntTy;
+			/*QualType Ty = getContext().UnsignedIntTy;
 			llvm::Type *LTy = ConvertTypeForMem(Ty);
 							
 			llvm::AllocaInst *Alloc = CreateTempAlloca(LTy);
@@ -130,7 +130,7 @@ RValue CodeGenFunction::EmitAnyExpr(const Expr *E,
 			llvm::LoadInst *idx = Builder.CreateLoad((llvm::Value*)Alloc,	"");
 			idx->setAlignment(4);
 
-			llvm::Value* idxPromoted = Builder.CreateIntCast(idx,	IntPtrTy,	false, "idxprom");
+			llvm::Value* idxPromoted = Builder.CreateIntCast(idx,	IntPtrTy,	false, "idxprom");*/
 			const BinaryOperator* bo = dyn_cast<BinaryOperator>(E);
 			assert(bo->getOpcode()	== BO_Assign);
 									//	C	=	A	+	BӾጱC
@@ -183,7 +183,7 @@ RValue CodeGenFunction::EmitAnyExpr(const Expr *E,
 						llvm::Value *arrayPtrB = LVB.getAddress();
 																	//	ᬟኴ༄ັ݇හ
 						llvm::Value *Zero = llvm::ConstantInt::get(Int32Ty,	0);
-						llvm::Value *Args[]	=	{	Zero,	idxPromoted	};
+						//llvm::Value *Args[]	=	{	Zero,	idxPromoted	};
                                                 /*
 						addrC = Builder.CreateInBoundsGEP(arrayPtrC,	Args,	"arrayidx");
 						addrA = Builder.CreateInBoundsGEP(arrayPtrA,	Args,	"arrayidx");
@@ -198,7 +198,58 @@ RValue CodeGenFunction::EmitAnyExpr(const Expr *E,
 																		//	ٟC[compiler]
 						llvm::StoreInst *valueC = Builder.CreateStore(add,	addrC,false);
 						valueC ->setAlignment(4);*/
-						uint64_t k = 0; 
+						llvm::BasicBlock *CondBlock = createBasicBlock("for.cond");
+                                                llvm::BasicBlock *AfterFor = createBasicBlock("for.end");
+                                                llvm::BasicBlock *ForBody = createBasicBlock("for.body");
+                                                QualType Ty = getContext().UnsignedIntTy;
+                                                llvm::Type *LTy = ConvertTypeForMem(Ty);
+                                                llvm::Value *Alloc = CreateTempAlloca(LTy);
+                                                Alloc->setName("arrayindex");
+ 
+                                                llvm::StoreInst *Store = Builder.CreateStore(llvm::ConstantInt::get(LTy, llvm::APInt(32,    0)),    (llvm::Value*)Alloc,    false);
+                                                Store->setAlignment(4);
+                                                EmitBlock(CondBlock);
+                                                uint64_t NumElements = CA->getSize().getZExtValue();
+
+                                                llvm::Value *Counter = Builder.CreateLoad(Alloc);
+                                                llvm::Value *NumElementsPtr = llvm::ConstantInt::get(Counter->getType(), NumElements);
+                                                llvm::Value *IsLess = Builder.CreateICmpULT(Counter, NumElementsPtr, "isless");
+                                                Builder.CreateCondBr(IsLess, ForBody, AfterFor);
+
+                                                EmitBlock(ForBody);
+                                                {
+                                                    llvm::Value *Argss[] = {Zero, Counter};
+                                                    addrC = Builder.CreateInBoundsGEP(arrayPtrC,    Argss,  "arrayidx");
+                                                    addrA = Builder.CreateInBoundsGEP(arrayPtrA,    Argss,  "arrayidx");
+                                                    addrB = Builder.CreateInBoundsGEP(arrayPtrB,    Argss,  "arrayidx");
+ 
+                                                    llvm::LoadInst *valueA = Builder.CreateLoad(addrA , "");
+                                                    llvm::LoadInst *valueB = Builder.CreateLoad(addrB , "");
+
+                                                    valueA->setAlignment(4);
+                                                    valueB->setAlignment(4);
+                                                    if(bo1->getOpcode() == BO_Add){
+                                                         llvm::Value* add = Builder.CreateAdd((llvm::Value*)valueA,(llvm::Value*)valueB, "add");
+                                                         llvm::StoreInst *valueC = Builder.CreateStore(add,  addrC,false);
+                                                         valueC->setAlignment(4);
+                                                     }
+                                                     else if(bo1->getOpcode() == BO_Mul){
+                                                         llvm::Value* mul = Builder.CreateMul((llvm::Value*)valueA,(llvm::Value*)valueB, "mul");
+                                                         llvm::StoreInst *valueC = Builder.CreateStore(mul, addrC, false);
+                                                         valueC->setAlignment(4);
+                                                     }
+                                                 }
+                                                 llvm::BasicBlock *ContinueBlock = createBasicBlock("for.inc");
+
+                                                 EmitBlock(ContinueBlock);
+                                                 llvm::Value *NextVal = llvm::ConstantInt::get(Counter->getType(), 1);
+
+                                                 NextVal = Builder.CreateAdd(Counter, NextVal, "inc");
+                                                 Builder.CreateStore(NextVal, Alloc);
+                                                 EmitBranch(CondBlock);
+
+                                                 EmitBlock(AfterFor, true);
+						/*uint64_t k = 0; 
                                                 uint64_t array_size = *(CA->getSize().getRawData());
                                                 while(k < array_size){
                                                     llvm::Value *Index = llvm::ConstantInt::get(Int32Ty, k);
@@ -224,7 +275,7 @@ RValue CodeGenFunction::EmitAnyExpr(const Expr *E,
                                                     }
 
                                                     k = k + 1;         
-                                                }
+                                                }*/
 														//	ᵋ׎ᬬࢧӞӻӳᥜ
 						return RValue::get(addrA);
 					}
