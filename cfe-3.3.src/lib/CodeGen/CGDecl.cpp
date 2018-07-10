@@ -1148,6 +1148,157 @@ void CodeGenFunction::EmitExprAsInit(const Expr *init,
                                      const ValueDecl *D,
                                      LValue lvalue,
                                      bool capturedByInit) {
+  if(BinaryOperator::classof(init->IgnoreParenImpCasts())){
+      const BinaryOperator* bo1 = dyn_cast<BinaryOperator>(init->IgnoreParenImpCasts());
+
+      Expr* lhs1 = bo1 -> getLHS() ->IgnoreParenImpCasts();
+      Expr* rhs1 = bo1 -> getRHS() ->IgnoreParenImpCasts();
+      const ConstantArrayType *CA = getContext().getAsConstantArrayType(lhs1->IgnoreParenImpCasts()->getType());
+
+      if(bo1->getOpcode() == BO_Add || bo1 -> getOpcode() == BO_Mul){
+      llvm::Value *baseC, *addrC;
+      llvm::Value *baseA, *addrA;
+      llvm::Value *baseB, *addrB;
+      const ValueDecl* decl = D;
+      baseC = LocalDeclMap.lookup((Decl*)decl);
+
+      const DeclRefExpr *declRefR1 = dyn_cast<DeclRefExpr>(lhs1);
+      baseA = LocalDeclMap.lookup((Decl*)declRefR1->getDecl());
+      const DeclRefExpr *declRefR2 = dyn_cast<DeclRefExpr>(rhs1);
+      baseB = LocalDeclMap.lookup((Decl*)declRefR2->getDecl());
+
+      const ValueDecl *VD = declRefR2->getDecl();
+      CharUnits Alignment = getContext().getDeclAlign(VD);
+
+      QualType T = declRefR2->getType();
+      LValue LVC, LVA,    LVB;
+
+      LVC = MakeAddrLValue(baseC, T,  Alignment);
+      LVA = MakeAddrLValue(baseA, T,  Alignment);
+      LVB = MakeAddrLValue(baseB, T,  Alignment);
+      llvm::Value *arrayPtrC = LVC.getAddress();
+      llvm::Value *arrayPtrA = LVA.getAddress();
+      llvm::Value *arrayPtrB = LVB.getAddress();
+
+      llvm::Value *Zero = llvm::ConstantInt::get(Int32Ty, 0);
+      llvm::BasicBlock *CondBlock = createBasicBlock("for.cond");
+      llvm::BasicBlock *AfterFor = createBasicBlock("for.end");
+      llvm::BasicBlock *ForBody = createBasicBlock("for.body");
+      QualType Ty = getContext().UnsignedIntTy;
+      llvm::Type *LTy = ConvertTypeForMem(Ty);
+      llvm::Value *Alloc = CreateTempAlloca(LTy);
+      Alloc->setName("arrayindex");
+
+      llvm::StoreInst *Store = Builder.CreateStore(llvm::ConstantInt::get(LTy, llvm::APInt(32,    0)),    (llvm::Value*)Alloc,    false);
+      Store->setAlignment(4);
+      EmitBlock(CondBlock);
+      uint64_t NumElements = CA->getSize().getZExtValue();
+
+      llvm::Value *Counter = Builder.CreateLoad(Alloc);
+      llvm::Value *NumElementsPtr = llvm::ConstantInt::get(Counter->getType(), NumElements);
+      llvm::Value *IsLess = Builder.CreateICmpULT(Counter, NumElementsPtr, "isless");
+      Builder.CreateCondBr(IsLess, ForBody, AfterFor);
+      EmitBlock(ForBody);
+      {
+          llvm::Value *Argss[] = {Zero, Counter};
+          addrC = Builder.CreateInBoundsGEP(arrayPtrC,    Argss,  "arrayidx");
+          addrA = Builder.CreateInBoundsGEP(arrayPtrA,    Argss,  "arrayidx");
+          addrB = Builder.CreateInBoundsGEP(arrayPtrB,    Argss,  "arrayidx");
+
+          llvm::LoadInst *valueA = Builder.CreateLoad(addrA , "");
+          llvm::LoadInst *valueB = Builder.CreateLoad(addrB , "");
+
+          valueA->setAlignment(4);
+          valueB->setAlignment(4);
+          if(bo1->getOpcode() == BO_Add){
+              llvm::Value* add = Builder.CreateAdd((llvm::Value*)valueA,(llvm::Value*)valueB, "add     ");
+              llvm::StoreInst *valueC = Builder.CreateStore(add,  addrC,false);
+              valueC->setAlignment(4);
+          }
+          else if(bo1->getOpcode() == BO_Mul){
+              llvm::Value* mul = Builder.CreateMul((llvm::Value*)valueA,(llvm::Value*)valueB, "mul     ");
+              llvm::StoreInst *valueC = Builder.CreateStore(mul, addrC, false);
+              valueC->setAlignment(4);
+              }
+      }
+      llvm::BasicBlock *ContinueBlock = createBasicBlock("for.inc");
+ 
+      EmitBlock(ContinueBlock);
+      llvm::Value *NextVal = llvm::ConstantInt::get(Counter->getType(), 1);
+      
+      NextVal = Builder.CreateAdd(Counter, NextVal, "inc");
+      Builder.CreateStore(NextVal, Alloc);
+      EmitBranch(CondBlock);
+
+      EmitBlock(AfterFor, true);
+      return ;
+ 
+      }
+  }
+  if(init->IgnoreParenImpCasts()->getType()->getTypeClass() == Type::ConstantArray &&
+      D->getType()->getTypeClass() == Type::ConstantArray){
+      llvm::Value *baseC, *addrC;
+      llvm::Value *baseA, *addrA;
+      Expr* rhs = (Expr *)(init->IgnoreParenImpCasts());
+      Expr* lhs = (Expr*)(D);
+      const ConstantArrayType *CA = getContext().getAsConstantArrayType(init->IgnoreParenImpCasts()->g     etType());
+      const DeclRefExpr *declRef = dyn_cast<DeclRefExpr>(rhs);
+      const ValueDecl* decl = declRef -> getDecl();
+      baseA = LocalDeclMap.lookup((Decl*)decl);
+
+      baseC = LocalDeclMap.lookup((Decl*)D);
+
+      const ValueDecl *VD = declRef->getDecl();
+      CharUnits Alignment = getContext().getDeclAlign(VD);
+      QualType T = declRef->getType();
+      LValue LVC, LVA;
+
+      LVC = MakeAddrLValue(baseC, T,  Alignment);
+      LVA = MakeAddrLValue(baseA, T,  Alignment);
+      llvm::Value *arrayPtrC = LVC.getAddress();
+      llvm::Value *arrayPtrA = LVA.getAddress();
+      llvm::Value *Zero = llvm::ConstantInt::get(Int32Ty, 0);
+
+      llvm::BasicBlock *CondBlock = createBasicBlock("for.cond");
+      llvm::BasicBlock *AfterFor = createBasicBlock("for.end");
+      llvm::BasicBlock *ForBody = createBasicBlock("for.body");
+      QualType Ty = getContext().UnsignedIntTy;
+      llvm::Type *LTy = ConvertTypeForMem(Ty);
+      llvm::Value *Alloc = CreateTempAlloca(LTy);
+      Alloc->setName("arrayindex");
+
+      llvm::StoreInst *Store = Builder.CreateStore(llvm::ConstantInt::get(LTy, llvm::APInt(32,    0)),         (llvm::Value*)Alloc,    false);
+      Store->setAlignment(4);
+      EmitBlock(CondBlock);
+      uint64_t NumElements = CA->getSize().getZExtValue();
+
+      llvm::Value *Counter = Builder.CreateLoad(Alloc);
+      llvm::Value *NumElementsPtr = llvm::ConstantInt::get(Counter->getType(), NumElements);
+      llvm::Value *IsLess = Builder.CreateICmpULT(Counter, NumElementsPtr, "isless");
+      Builder.CreateCondBr(IsLess, ForBody, AfterFor);
+
+      EmitBlock(ForBody);
+      {
+          llvm::Value *Argss[] = {Zero, Counter};
+          addrC = Builder.CreateInBoundsGEP(arrayPtrC,    Argss,  "arrayidx");
+          addrA = Builder.CreateInBoundsGEP(arrayPtrA,    Argss,  "arrayidx");
+          llvm::LoadInst *valueA = Builder.CreateLoad(addrA , "");
+          valueA->setAlignment(4);
+
+          llvm::StoreInst *valueC = Builder.CreateStore(valueA,  addrC,false);
+          valueC->setAlignment(4);
+       }
+       llvm::BasicBlock *ContinueBlock = createBasicBlock("for.inc");
+
+       EmitBlock(ContinueBlock);
+       llvm::Value *NextVal = llvm::ConstantInt::get(Counter->getType(), 1);
+
+       NextVal = Builder.CreateAdd(Counter, NextVal, "inc");
+       Builder.CreateStore(NextVal, Alloc);
+       EmitBranch(CondBlock);
+       EmitBlock(AfterFor, true);
+       return ;
+  }
   QualType type = D->getType();
 
   if (type->isReferenceType()) {
